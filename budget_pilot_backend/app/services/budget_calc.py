@@ -129,15 +129,52 @@ def _shift_month(month: str, delta: int) -> str:
     return f"{total // 12}-{(total % 12) + 1:02d}"
 
 
+def get_month_totals(db: Session, user_id: uuid.UUID, month: str) -> dict:
+    """
+    Same total_planned / total_actual / total_income / unplanned / leftover
+    numbers as get_month_summary, but WITHOUT the per-category carryover walk
+    or the previous-month recursion -- because get_history (the Reports page)
+    only ever reads the totals, never the per-category detail. Running the
+    full per-category carryover computation for every month in a 12-month
+    report was pure wasted work: real numbers, computed correctly, then
+    thrown away unread. This is what made Reports so much slower than the
+    single-month Dashboard view.
+    """
+    rows = crud_month.get_month(db, user_id, month)
+    spend_by_category = crud_purchase.sum_purchases_by_category(db, user_id, month)
+
+    total_planned = 0.0
+    total_actual = 0.0
+    for row in rows:
+        total_planned += row["planned_amount"]
+        total_actual += spend_by_category.get(row["category_id"], row["actual_amount"])
+
+    total_income = crud_income.total_income(db, user_id, month)
+    unplanned_amount = round(total_income - total_planned, 2)
+    leftover_amount = round(total_income - total_actual, 2)
+
+    return {
+        "month": month,
+        "total_planned": round(total_planned, 2),
+        "total_actual": round(total_actual, 2),
+        "total_income": round(total_income, 2),
+        "unplanned_amount": unplanned_amount,
+        "unplanned_pct": round((unplanned_amount / total_income) * 100, 1) if total_income else None,
+        "leftover_amount": leftover_amount,
+        "leftover_pct": round((leftover_amount / total_income) * 100, 1) if total_income else None,
+        "over_committed": unplanned_amount < 0,
+    }
+
+
 def get_history(db: Session, user_id: uuid.UUID, end_month: str, num_months: int = 12) -> list[dict]:
     """
-    The last `num_months` months (oldest to newest, ending at end_month),
-    each computed with the same get_month_summary used for the single-month
-    view. This is what feeds the 12-month bar chart, and quarter/year
-    rollups the frontend groups client-side from these same months.
+    The last `num_months` months (oldest to newest, ending at end_month) --
+    totals only (see get_month_totals). This is what feeds the bar chart and
+    the quarter/year rollups the frontend groups client-side from these same
+    months.
     """
     months = [_shift_month(end_month, -i) for i in range(num_months - 1, -1, -1)]
-    return [get_month_summary(db, user_id, m) for m in months]
+    return [get_month_totals(db, user_id, m) for m in months]
 
 
 def get_savings_lifetime(db: Session, user_id: uuid.UUID) -> list[dict]:

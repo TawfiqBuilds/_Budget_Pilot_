@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from '../lib/api'
 import NavBar from '../components/NavBar'
 
@@ -31,9 +31,15 @@ export default function Transactions() {
   const [form, setForm] = useState({ category_id: '', name: '', amount: '', date: todayISO() })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const hasLoadedOnce = useRef(false)
 
+  // Only the very first fetch shows the full "Loading…" state. Adding a
+  // purchase, deleting one, or flipping months all call load() again, but
+  // blanking the whole list back to a bare loading message every time --
+  // even though the old data was still perfectly valid a moment ago -- is
+  // exactly what made every add feel like "the page reloaded".
   const load = useCallback(async () => {
-    setLoading(true)
+    if (!hasLoadedOnce.current) setLoading(true)
     setError('')
     try {
       const [cats, p] = await Promise.all([api.listCategories(), api.listPurchases(month)])
@@ -45,6 +51,7 @@ export default function Transactions() {
       // the first category -- so submitting without touching the dropdown
       // silently did nothing until you picked a different option and back.
       setForm((f) => ({ ...f, category_id: f.category_id || cats[0]?.id || '' }))
+      hasLoadedOnce.current = true
     } catch (e) {
       setError(e.message)
     } finally {

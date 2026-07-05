@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from '../lib/api'
 import NavBar from '../components/NavBar'
 import LedgerRail from '../components/LedgerRail'
@@ -41,8 +41,10 @@ export default function Dashboard() {
   const [newCategoryType, setNewCategoryType] = useState('expense')
   const [showAddCategory, setShowAddCategory] = useState(false)
 
+  const hasLoadedOnce = useRef(false)
+
   const load = useCallback(async () => {
-    setLoading(true)
+    if (!hasLoadedOnce.current) setLoading(true)
     setError('')
     const prevMonth = shiftMonth(month, -1)
     try {
@@ -58,6 +60,7 @@ export default function Dashboard() {
       setLifetimeSavings(savings)
       setIncome(incomeRows)
       setArchivedCategories(archived)
+      hasLoadedOnce.current = true
     } catch (e) {
       setError(e.message)
     } finally {
@@ -544,7 +547,7 @@ export default function Dashboard() {
             {/* Food / Personal reference breakdown */}
             <section>
               <h3 className="text-sm uppercase tracking-wide text-subink mb-3">What's inside your buckets</h3>
-              <ReferenceItems month={month} categories={summary.categories} />
+              <ReferenceItems month={month} categories={summary.categories} onPurchaseChange={refreshAfterEdit} />
             </section>
           </>
         )}

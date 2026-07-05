@@ -16,7 +16,7 @@ function currency(n) {
  * are already correctly month-scoped (each has its own date), so there's no
  * separate bug surface to maintain here.
  */
-export default function ReferenceItems({ month, categories }) {
+export default function ReferenceItems({ month, categories, onPurchaseChange }) {
   const [bucket, setBucket] = useState('food')
   const [items, setItems] = useState([])
   const [form, setForm] = useState({ name: '', amount: '' })
@@ -49,6 +49,7 @@ export default function ReferenceItems({ month, categories }) {
       await api.createPurchase(bucketCategory.category_id, form.name.trim(), amount)
       setForm({ name: '', amount: '' })
       await load()
+      onPurchaseChange?.()
     } catch (e) {
       setError(e.message)
     }
@@ -87,7 +88,7 @@ export default function ReferenceItems({ month, categories }) {
               <div className="flex items-center gap-3">
                 <span className="font-mono text-subink">{currency(i.amount)}</span>
                 <button
-                  onClick={async () => { await api.deletePurchase(i.id); await load() }}
+                  onClick={async () => { await api.deletePurchase(i.id); await load(); onPurchaseChange?.() }}
                   className="text-subink hover:text-clay text-xs"
                 >✕</button>
               </div>

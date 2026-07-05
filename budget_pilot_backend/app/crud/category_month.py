@@ -132,10 +132,8 @@ def get_lifetime_savings(db: Session, user_id: uuid.UUID) -> list[dict]:
             select(CategoryMonth).where(CategoryMonth.category_id == cat.id, CategoryMonth.user_id == user_id)
         ).all()
 
-        total = 0.0
-        for cm in cm_rows:
-            purchases_this_month = crud_purchase.sum_purchases_by_category(db, user_id, cm.month)
-            total += purchases_this_month.get(cat.id, float(cm.actual_amount))
+        spend_by_month = crud_purchase.sum_purchases_by_month_for_category(db, user_id, cat.id)
+        total = sum(spend_by_month.get(cm.month, float(cm.actual_amount)) for cm in cm_rows)
 
         if cat.is_archived and round(total, 2) == 0:
             continue
@@ -188,12 +186,13 @@ def get_category_carryover(db: Session, user_id: uuid.UUID, category_id: uuid.UU
 
     from app.crud import purchase as crud_purchase  # local import avoids a circular import
 
+    spend_by_month = crud_purchase.sum_purchases_by_month_for_category(db, user_id, category_id)
+
     carry = 0.0
     for row in rows:
         if row.month >= upto_month_exclusive:
             break
-        spend_by_cat = crud_purchase.sum_purchases_by_category(db, user_id, row.month)
-        actual = spend_by_cat.get(category_id, float(row.actual_amount))
+        actual = spend_by_month.get(row.month, float(row.actual_amount))
         carry += float(row.planned_amount) - actual
     return round(carry, 2)
 

@@ -58,3 +58,19 @@ def sum_purchases_by_category(db: Session, user_id: uuid.UUID, month: str) -> di
         .group_by(Purchase.category_id)
     ).all()
     return {cat_id: float(total) for cat_id, total in rows}
+
+
+def sum_purchases_by_month_for_category(db: Session, user_id: uuid.UUID, category_id: uuid.UUID) -> dict[str, float]:
+    """
+    Every month's total spend for ONE category, in a single query -- e.g.
+    {"2026-05": 2340.0, "2026-06": 1980.0, ...}. This exists so carryover and
+    lifetime-savings calculations don't have to issue one query per month of
+    history per category (that N+1 pattern is what made every save feel slow
+    once a few months of history piled up).
+    """
+    rows = db.execute(
+        select(func.to_char(Purchase.date, "YYYY-MM"), func.sum(Purchase.amount))
+        .where(Purchase.user_id == user_id, Purchase.category_id == category_id)
+        .group_by(func.to_char(Purchase.date, "YYYY-MM"))
+    ).all()
+    return {month: float(total) for month, total in rows}

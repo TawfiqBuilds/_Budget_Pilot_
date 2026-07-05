@@ -67,13 +67,24 @@ export default function Dashboard() {
 
   useEffect(() => { load() }, [load])
 
+  // Editing a planned/actual/notes field can only change this month's summary
+  // (and, if it's a saving category, the lifetime-savings total) -- it can't
+  // change your income sources or archived-category list. Refetching those
+  // two on every single field blur was unnecessary round-trip work that made
+  // every edit feel slower than it needed to.
+  const refreshAfterEdit = useCallback(async () => {
+    const [s, savings] = await Promise.all([api.getMonthSummary(month), api.getSavingsLifetime()])
+    setSummary(s)
+    setLifetimeSavings(savings)
+  }, [month])
+
   async function savePlanned(categoryId, rawValue) {
     const amount = parseFloat(rawValue)
     if (isNaN(amount) || amount < 0) return
     setSaveError('')
     try {
       await api.upsertMonthEntry(month, categoryId, { planned_amount: amount })
-      await load()
+      await refreshAfterEdit()
     } catch (e) {
       setSaveError(`Couldn't save planned amount: ${e.message}`)
     }
@@ -85,7 +96,7 @@ export default function Dashboard() {
     setSaveError('')
     try {
       await api.upsertMonthEntry(month, categoryId, { actual_amount: amount })
-      await load()
+      await refreshAfterEdit()
     } catch (e) {
       setSaveError(`Couldn't save actual amount: ${e.message}`)
     }
@@ -95,7 +106,7 @@ export default function Dashboard() {
     setSaveError('')
     try {
       await api.upsertMonthEntry(month, categoryId, { notes: rawValue })
-      await load()
+      await refreshAfterEdit()
     } catch (e) {
       setSaveError(`Couldn't save notes: ${e.message}`)
     }

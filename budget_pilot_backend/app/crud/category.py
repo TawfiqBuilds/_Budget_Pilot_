@@ -11,8 +11,8 @@ DEFAULT_CATEGORIES = [
     ("EMI", CategoryType.expense),
     ("Food bucket", CategoryType.expense),
     ("Personal bucket", CategoryType.expense),
-    ("Emergency Fund", CategoryType.saving),
-    ("SIP Investing", CategoryType.saving),
+    
+   
     ("Charity", CategoryType.expense),
     ("Upskilling", CategoryType.expense),
     ("Entertainment", CategoryType.expense),
